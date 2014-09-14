@@ -7,7 +7,7 @@ output: html_document
 
 Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. In one study, six participants collected data from accelerometers on the belt, forearm, arm, and dumbell, and were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). The goal of this project is to predict the manner in which they did the exercise. 
 
-We load a predetermined set of training and testing data. A part of the training data is set aside for cross validation. We prepare the data by eliminating factors that aren't relevant, contain little or no data, have little to no variance, and that have a high correlation with another factor. We then fit the data on four different models; the random forest model had the highest accuracy on the cross-validation data, 99.86%. We then generate predictions on the 20 observations in the testing data.
+We load a predetermined set of training and testing data. A part of the training data is set aside for cross validation. We prepare the data by eliminating factors that aren't relevant, contain little or no data, have little to no variance, and that have a high correlation with another factor. We then fit the data on four different models; the random forest model had the highest accuracy on the cross-validation data, 99.81%. We then generate predictions on the 20 observations in the testing data.
 
 ## Data Processing
 
