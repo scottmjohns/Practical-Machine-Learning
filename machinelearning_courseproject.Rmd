@@ -1,0 +1,136 @@
+---
+title: "Practical Machine Learning: Course Project"
+output: html_document
+---
+
+## Executive Summary
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. In one study, six participants collected data from accelerometers on the belt, forearm, arm, and dumbell, and were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). The goal of this project is to predict the manner in which they did the exercise. 
+
+We load a predetermined set of training and testing data. A part of the training data is set aside for cross validation. We prepare the data by eliminating factors that aren't relevant, contain little or no data, have little to no variance, and that have a high correlation with another factor. We then fit the data on four different models; the random forest model had the highest accuracy on the cross-validation data, 99.86%. We then generate predictions on the 20 observations in the testing data.
+
+## Data Processing
+
+The prepare the data for training, we:
+
+Load training and testing data:
+
+```{r,echo=TRUE}
+training = read.csv('./pml-training.csv', header=TRUE)
+testing  = read.csv('./pml-testing.csv',  header=TRUE)
+```
+
+Split off 30% of the training data and set aside for cross-validation:
+
+```{r,echo=TRUE, eval=TRUE, message=FALSE}
+library(caret)
+set.seed(5555)
+inTrain         = createDataPartition(y=training$classe, p=0.7, list=FALSE)
+crossValidation = training[-inTrain,]
+training        = training[inTrain,]
+```
+
+Take a look at the training data, and trim off first six columns as part of the data collection, and not relevant to the analysis:
+
+```{r,echo=TRUE, eval=TRUE}
+training        = training[,6:dim(training)[2]]
+crossValidation = crossValidation[,6:dim(crossValidation)[2]]
+testing         = testing[,6:dim(testing)[2]]
+```
+
+Eliminate predictors which are empty or have an NA value for over 95% of observations:
+
+```{r,echo=TRUE, eval=TRUE}
+t = 0.95 * dim(training)[1]
+findBadFactors  = function(c) sum(is.na(c)) > t || sum(c=="") > t 
+badFactors      = apply(training, 2, findBadFactors) 
+training        = training[,!badFactors]
+crossValidation = crossValidation[,!badFactors]
+testing         = testing[,!badFactors]
+```
+
+Eliminate predictors that won't add value to the learning algorithm because they have zero or near zero variance:
+
+```{r,echo=TRUE, eval=TRUE}
+zeroVarPredictors = nearZeroVar(training, saveMetrics=TRUE)
+training          = training[,zeroVarPredictors$nzv==FALSE]
+crossValidation   = crossValidation[,zeroVarPredictors$nzv==FALSE]
+testing$classe    = NA
+testing           = testing[ ,zeroVarPredictors$nzv==FALSE]
+```
+
+Eliminate unnecessary predictors that have more than 90% correlation to other predictors:
+
+```{r,echo=TRUE, eval=TRUE}
+highCorPred = findCorrelation(abs(cor(training[,-which(names(training)=="classe")])),0.9)
+training        = training[,-highCorPred]
+crossValidation = crossValidation[,-highCorPred]
+testing         = testing[,-highCorPred]
+```
+
+46 predictors remain in the data; the training set hass 13737 observations, and the cross-validation set has 5885 observations. The variable we're predicting is 'classe', which is a factor variable taking values "A", "B", "C", "D", "E", the give different ways of exercising.
+
+The data is clustered in all kinds of interesting ways; for example:
+
+```{r,echo=TRUE, fig.height=4}
+ggplot(training, aes(x=accel_dumbbell_z, y=magnet_dumbbell_z, colour=classe)) + geom_point()
+```
+
+## Model Training Selection
+
+Fit the training data with four different models: random forest(rf), boosting with trees (gbm), linear discriminant analysis (lda), and classification trees(ctree).
+
+```{r,echo=TRUE, eval=FALSE}
+trainFcn = function(m,df) {
+    train(classe ~ ., method = m, 
+          preProcess = c("center", "scale"), 
+          data = df)
+}
+fit_rf    = trainFcn("rf",    training)
+fit_gbm   = trainFcn("gbm",   training)
+fit_lda   = trainFcn("lda",   training)
+fit_ctree = trainFcn("rpart", training)
+```
+
+We generate predictions on the cross-validation data set for each model:
+
+```{r,echo=TRUE, eval=FALSE}
+pred_rf    = predict(fit_rf,    crossValidation)
+pred_gbm   = predict(fit_gbm,   crossValidation)
+pred_lda   = predict(fit_lda,   crossValidation)
+pred_ctree = predict(fit_ctree, crossValidation)
+```
+
+We look at the confusion matrix for each model, and evaluate the accuracy:
+
+```{r,echo=TRUE, eval=FALSE}
+confusionMatrix(pred_rf,    crossValidation$classe)
+confusionMatrix(pred_gbm,   crossValidation$classe)
+confusionMatrix(pred_lda,   crossValidation$classe)
+confusionMatrix(pred_ctree, crossValidation$classe)
+```
+
+The accuracy of the models were:
+
+* random forest model = 99.81%, 
+* boosting with trees = 98.76%, 
+* linear discriminant analysis = 68.89%, 
+* classification tree = 56.09%
+
+We keep the model with the highest accuracy, the random forest model.
+
+## Out of sample error
+
+The random forest model, fitted on the training data, had accuracy of 99.81% on the cross-validation data. Therefore, we expect the out of sample error to be 1 - 0.9981 = 0.0019, or 0.19%. The 95% confidence interval for out of sample error is (0.09%, 0.33%).
+
+## Predict on Testing Data
+
+Finally, we generate a prediction based on the 20 observations in the testing data:
+
+```{r,echo=TRUE, eval=FALSE}
+pred = predict(fit_rf, testing)
+```
+
+The predictions are:
+
+B A B A A E D B A A B C B A E E A B B B
